@@ -3,9 +3,18 @@ name: Docker Build and Push
 on:
   workflow_dispatch:
   push:
+    branches: [ main, cinema ]
+    paths:
+      - 'src/**'
+      - 'docker-compose.yml'
+      - 'tests/postman/**'
+      - '.github/workflows/docker-build-push.yml'
+  pull_request:
     branches: [ main ]
     paths:
       - 'src/**'
+      - 'docker-compose.yml'
+      - 'tests/postman/**'
       - '.github/workflows/docker-build-push.yml'
   release:
     types: [published]
@@ -18,7 +27,69 @@ env:
   PROXY_SERVICE_IMAGE_NAME: ${{ github.repository }}/proxy-service
 
 jobs:
+  api-tests:
+    name: API Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Compose
+        run: docker compose version
+
+      - name: Start services
+        run: docker compose up -d --build
+
+      - name: Wait for API Gateway
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:8000/health; then
+              exit 0
+            fi
+            sleep 5
+          done
+          docker compose ps
+          docker compose logs --tail=200
+          exit 1
+
+      - name: Wait for Events Service and Kafka
+        run: |
+          for i in {1..60}; do
+            if curl -fsS \
+              -H 'Content-Type: application/json' \
+              -d '{"user_id":1,"username":"ci","action":"pipeline_check"}' \
+              http://127.0.0.1:8082/api/events/user; then
+              exit 0
+            fi
+            sleep 5
+          done
+          docker compose ps
+          docker compose logs --tail=200 events-service kafka
+          exit 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: tests/postman/package-lock.json
+
+      - name: Install Postman test dependencies
+        working-directory: tests/postman
+        run: npm ci
+
+      - name: Run Postman API tests
+        working-directory: tests/postman
+        run: npm run test:local
+
+      - name: Stop services
+        if: always()
+        run: docker compose down -v
+
   build-and-push:
+    needs: api-tests
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -48,12 +119,13 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short
             type=ref,event=branch
-            latest
+            type=raw,value=latest
 
       - name: Build and push Monolith Docker image
         uses: docker/build-push-action@v4
         with:
           context: ./src/monolith
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta-monolith.outputs.tags }}
           labels: ${{ steps.meta-monolith.outputs.labels }}
@@ -70,16 +142,61 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short
             type=ref,event=branch
-            latest
+            type=raw,value=latest
 
       - name: Build and push Movies Service Docker image
         uses: docker/build-push-action@v4
         with:
           context: ./src/microservices/movies
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta-movies.outputs.tags }}
           labels: ${{ steps.meta-movies.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      
+      - name: Extract metadata (tags, labels) for Events Service
+        id: meta-events
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.EVENTS_SERVICE_IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+            type=ref,event=branch
+            type=raw,value=latest
+
+      - name: Build and push Events Service Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./src/microservices/events
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-events.outputs.tags }}
+          labels: ${{ steps.meta-events.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata (tags, labels) for Proxy Service
+        id: meta-proxy
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.PROXY_SERVICE_IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+            type=ref,event=branch
+            type=raw,value=latest
+
+      - name: Build and push Proxy Service Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./src/microservices/proxy
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-proxy.outputs.tags }}
+          labels: ${{ steps.meta-proxy.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

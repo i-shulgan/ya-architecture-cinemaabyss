@@ -1,0 +1,69 @@
+@startuml cinemaabyss-to-be-container
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+title To-Be архитектура онлайн-кинотеатра "Кинобездна"
+
+Person(user, "Пользователь", "Смотрит фильмы, управляет подпиской, оценками и избранным")
+
+System_Boundary(cinema, "Кинобездна") {
+    Container(apiGateway, "API Gateway / BFF", "Go, REST", "Единая точка входа для web, mobile и Smart TV. Маршрутизация, адаптация ответов под тип клиента, feature flags для Strangler Fig")
+
+    Container(authService, "User & Auth Service", "Go", "Профили пользователей, аутентификация, авторизация")
+    Container(subscriptionService, "Subscription Service", "Go", "Подписки, права доступа к контенту, тарифы")
+    Container(paymentService, "Payment Service", "Go", "Платежи, счета, интеграция с платежными провайдерами")
+    Container(movieService, "Movies Metadata Service", "Go", "Метаданные фильмов: жанры, актеры, рейтинги, оценки, избранное")
+    Container(contentService, "Content Aggregation Service", "Go", "Каталог доступного контента, ссылки на источники и онлайн-кинотеатры")
+    Container(notificationService, "Notification Service", "Go", "Уведомления пользователям о платежах, подписках и рекомендациях")
+    Container(eventsService, "Events Service", "Go", "Прием доменных событий, публикация и обработка событий User, Payment, Movie")
+
+    Container(monolith, "Legacy Monolith", "Go", "Оставшиеся функции до полного выделения доменов. Постепенно замещается микросервисами")
+
+    ContainerQueue(kafka, "Kafka", "Message Broker", "Асинхронная интеграция доменных сервисов")
+    ContainerDb(userDb, "User DB", "PostgreSQL", "Данные пользователей и сессии")
+    ContainerDb(subscriptionDb, "Subscription DB", "PostgreSQL", "Подписки и права доступа")
+    ContainerDb(paymentDb, "Payment DB", "PostgreSQL", "Платежи и финансовые операции")
+    ContainerDb(movieDb, "Movies DB", "PostgreSQL", "Метаданные фильмов, оценки и избранное")
+    ContainerDb(contentDb, "Content DB", "PostgreSQL", "Каталог контента и внешние источники")
+    ContainerDb(legacyDb, "Legacy DB", "PostgreSQL", "Данные монолита на время миграции")
+    ContainerDb(objectStorage, "Object Storage", "S3-compatible", "Постеры, изображения, трейлеры и другие медиафайлы")
+}
+
+System_Ext(paymentProvider, "Платежные системы", "Провайдеры платежей")
+System_Ext(recommendationSystem, "Внешняя рекомендательная система", "Подборки и персональные рекомендации")
+System_Ext(contentPartners, "Партнерские онлайн-кинотеатры", "Источники контента")
+System_Ext(loyaltyPartners, "Сервисы лояльности и маркетплейсы", "Промокоды, скидки, партнерские программы")
+
+Rel(user, apiGateway, "Использует", "HTTPS/REST")
+
+Rel(apiGateway, authService, "Маршрутизирует запросы пользователей", "REST")
+Rel(apiGateway, subscriptionService, "Проверяет подписки и доступ", "REST")
+Rel(apiGateway, paymentService, "Передает платежные операции", "REST")
+Rel(apiGateway, movieService, "Получает и изменяет метаданные фильмов", "REST")
+Rel(apiGateway, contentService, "Получает каталог и ссылки на контент", "REST")
+Rel(apiGateway, monolith, "Проксирует немигрированные домены", "REST, feature flags")
+
+Rel(authService, userDb, "Читает и пишет", "SQL")
+Rel(subscriptionService, subscriptionDb, "Читает и пишет", "SQL")
+Rel(paymentService, paymentDb, "Читает и пишет", "SQL")
+Rel(movieService, movieDb, "Читает и пишет", "SQL")
+Rel(contentService, contentDb, "Читает и пишет", "SQL")
+Rel(monolith, legacyDb, "Читает и пишет", "SQL")
+Rel(movieService, objectStorage, "Хранит и получает медиа", "S3 API")
+Rel(contentService, objectStorage, "Хранит и получает медиа", "S3 API")
+
+Rel(paymentService, paymentProvider, "Проводит платежи и получает статусы", "HTTPS/REST")
+Rel(movieService, recommendationSystem, "Запрашивает рекомендации", "REST / async events")
+Rel(contentService, contentPartners, "Получает доступный контент", "HTTPS/REST")
+Rel(subscriptionService, loyaltyPartners, "Проверяет скидки и промокоды", "HTTPS/REST")
+
+Rel(authService, kafka, "Публикует User events", "Kafka")
+Rel(subscriptionService, kafka, "Публикует Subscription events", "Kafka")
+Rel(paymentService, kafka, "Публикует Payment events", "Kafka")
+Rel(movieService, kafka, "Публикует Movie events", "Kafka")
+Rel(contentService, kafka, "Публикует Content events", "Kafka")
+Rel(eventsService, kafka, "Читает и публикует события", "Kafka")
+Rel(notificationService, kafka, "Читает события для уведомлений", "Kafka")
+Rel(recommendationSystem, kafka, "Получает события поведения", "Kafka")
+
+@enduml

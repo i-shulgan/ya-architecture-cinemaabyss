@@ -5,7 +5,10 @@
 1. Спроектируйте to be архитектуру КиноБездны, разделив всю систему на отдельные домены и организовав интеграционное взаимодействие и единую точку вызова сервисов.
 Результат представьте в виде контейнерной диаграммы в нотации С4.
 Добавьте ссылку на файл в этот шаблон
-[ссылка на файл](ссылка)
+
+[Диаграмма контейнеров To-Be архитектуры Кинобездны](docs/diagrams/cinemaabyss-to-be-container.puml)
+
+![Диаграмма контейнеров To-Be архитектуры Кинобездны](https://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/i-shulgan/ya-architecture-cinemaabyss/cinema/docs/diagrams/cinemaabyss-to-be-container.puml&v=1)
 
 # Задание 2
 
@@ -58,6 +61,35 @@
 
 Необходимые тесты для проверки этого API вызываются при запуске npm run test:local из папки tests/postman 
 Приложите скриншот тестов и скриншот состояния топиков Kafka из UI http://localhost:8090 
+
+Реализованы сервисы:
+
+- Proxy Service: `./src/microservices/proxy`
+- Events Service: `./src/microservices/events`
+
+Проверка API Gateway:
+
+```bash
+curl http://localhost:8000/api/movies
+```
+
+Проверка Feature Flag:
+
+- `MOVIES_MIGRATION_PERCENT=100` - запросы `/api/movies` маршрутизируются в `movies-service`;
+- `MOVIES_MIGRATION_PERCENT=0` - запросы `/api/movies` маршрутизируются в `monolith`;
+- итоговое значение в `docker-compose.yml` возвращено на `50`.
+
+Результат Postman-тестов:
+
+[Скриншот Postman-тестов](docs/screenshots/postman-tests-local.png)
+
+![Скриншот Postman-тестов](docs/screenshots/postman-tests-local.png)
+
+Состояние топиков Kafka:
+
+[Скриншот Kafka UI](docs/screenshots/kafka-ui-topics.png)
+
+![Скриншот Kafka UI](docs/screenshots/kafka-ui-topics.png)
 
 # Задание 3
 
@@ -275,6 +307,15 @@ cat .docker/config.json | base64
 #### Шаг 3
 Добавьте сюда скриншота вывода при вызове https://cinemaabyss.example.com/api/movies и  скриншот вывода event-service после вызова тестов.
 
+Результат проверки в Minikube:
+
+- `https://cinemaabyss.example.com/api/movies` возвращает список фильмов через `proxy-service`;
+- `npm run test:kubernetes` выполнен успешно: 22 запроса, 42 проверки, 0 ошибок;
+- в логах `events-service` видна обработка событий `movie`, `user` и `payment` из Kafka.
+
+![Вывод https://cinemaabyss.example.com/api/movies](docs/screenshots/k8s-movies-response.png)
+
+![Логи events-service после запуска тестов](docs/screenshots/k8s-events-service-logs.png)
 
 # Задание 4
 Для простоты дальнейшего обновления и развертывания вам как архитектуру необходимо так же реализовать helm-чарты для прокси-сервиса и проверить работу 
@@ -349,6 +390,8 @@ minikube tunnel
 Потом вызовите 
 https://cinemaabyss.example.com/api/movies
 и приложите скриншот развертывания helm и вывода https://cinemaabyss.example.com/api/movies
+
+![Helm-развертывание и ответ https://cinemaabyss.example.com/api/movies](docs/screenshots/helm-deployment-and-movies.png)
 
 ## Удаляем все
 
