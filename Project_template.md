@@ -5,7 +5,10 @@
 1. Спроектируйте to be архитектуру КиноБездны, разделив всю систему на отдельные домены и организовав интеграционное взаимодействие и единую точку вызова сервисов.
 Результат представьте в виде контейнерной диаграммы в нотации С4.
 Добавьте ссылку на файл в этот шаблон
-[ссылка на файл](ссылка)
+
+[Диаграмма контейнеров To-Be архитектуры Кинобездны](docs/diagrams/cinemaabyss-to-be-container.puml)
+
+![Диаграмма контейнеров To-Be архитектуры Кинобездны](https://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/i-shulgan/ya-architecture-cinemaabyss/cinema/docs/diagrams/cinemaabyss-to-be-container.puml&v=1)
 
 # Задание 2
 
