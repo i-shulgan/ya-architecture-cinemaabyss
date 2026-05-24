@@ -62,6 +62,35 @@
 Необходимые тесты для проверки этого API вызываются при запуске npm run test:local из папки tests/postman 
 Приложите скриншот тестов и скриншот состояния топиков Kafka из UI http://localhost:8090 
 
+Реализованы сервисы:
+
+- Proxy Service: `./src/microservices/proxy`
+- Events Service: `./src/microservices/events`
+
+Проверка API Gateway:
+
+```bash
+curl http://localhost:8000/api/movies
+```
+
+Проверка Feature Flag:
+
+- `MOVIES_MIGRATION_PERCENT=100` - запросы `/api/movies` маршрутизируются в `movies-service`;
+- `MOVIES_MIGRATION_PERCENT=0` - запросы `/api/movies` маршрутизируются в `monolith`;
+- итоговое значение в `docker-compose.yml` возвращено на `50`.
+
+Результат Postman-тестов:
+
+[Скриншот Postman-тестов](docs/screenshots/postman-tests-local.png)
+
+![Скриншот Postman-тестов](docs/screenshots/postman-tests-local.png)
+
+Состояние топиков Kafka:
+
+[Скриншот Kafka UI](docs/screenshots/kafka-ui-topics.png)
+
+![Скриншот Kafka UI](docs/screenshots/kafka-ui-topics.png)
+
 # Задание 3
 
 Команда начала переезд в Kubernetes для лучшего масштабирования и повышения надежности. 
