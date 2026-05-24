@@ -307,6 +307,15 @@ cat .docker/config.json | base64
 #### Шаг 3
 Добавьте сюда скриншота вывода при вызове https://cinemaabyss.example.com/api/movies и  скриншот вывода event-service после вызова тестов.
 
+Результат проверки в Minikube:
+
+- `https://cinemaabyss.example.com/api/movies` возвращает список фильмов через `proxy-service`;
+- `npm run test:kubernetes` выполнен успешно: 22 запроса, 42 проверки, 0 ошибок;
+- в логах `events-service` видна обработка событий `movie`, `user` и `payment` из Kafka.
+
+![Вывод https://cinemaabyss.example.com/api/movies](docs/screenshots/k8s-movies-response.png)
+
+![Логи events-service после запуска тестов](docs/screenshots/k8s-events-service-logs.png)
 
 # Задание 4
 Для простоты дальнейшего обновления и развертывания вам как архитектуру необходимо так же реализовать helm-чарты для прокси-сервиса и проверить работу 
